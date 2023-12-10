@@ -100,7 +100,9 @@ float g_fAnim = 0.0;
 int mouse_old_x, mouse_old_y;
 int mouse_buttons = 0;
 float rotate_x = 0.0, rotate_y = 0.0;
-float translate_z = -3.0;
+float translate_x = 0.0;
+float translate_y = 0.0;
+float translate_z = -50.0;
 
 StopWatchInterface *timer = NULL;
 
@@ -470,7 +472,7 @@ void display()
     // set view matrix
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(0.0, 0.0, translate_z);
+    glTranslatef(translate_x, translate_y, translate_z);
     glRotatef(rotate_x, 1.0, 0.0, 0.0);
     glRotatef(rotate_y, 0.0, 1.0, 0.0);
 
@@ -536,7 +538,6 @@ void mouse(int button, int state, int x, int y)
     if (state == GLUT_DOWN)
     {
         mouse_buttons |= 1<<button;
-        printf("%d", button);
     }
     else if (state == GLUT_UP)
     {
@@ -569,6 +570,11 @@ void motion(int x, int y)
     {
         rotate_x += dy * 0.2f;
         rotate_y += dx * 0.2f;
+    }
+    else if (mouse_buttons & 2) //middle mouse
+    {
+        translate_x += dx * 0.01f;
+        translate_y -= dy * 0.01f;
     }
     else if (mouse_buttons & 4)
     {
