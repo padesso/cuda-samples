@@ -85,9 +85,9 @@
 const unsigned int window_width  = 800;
 const unsigned int window_height = 800;
 
-const unsigned int mesh_width    = 256;
-const unsigned int mesh_height   = 256;
-const unsigned int mesh_depth    = 256;
+const unsigned int mesh_width    = 8;
+const unsigned int mesh_height   = 8;
+const unsigned int mesh_depth    = 8;
 
 // vbo variables
 GLuint vbo;
@@ -100,8 +100,8 @@ float g_fAnim = 0.0;
 int mouse_old_x, mouse_old_y;
 int mouse_buttons = 0;
 float rotate_x = 0.0, rotate_y = 0.0;
-float translate_x = 0.0;
-float translate_y = 0.0;
+float translate_x = -8.0;
+float translate_y = -8.0;
 float translate_z = -50.0;
 
 StopWatchInterface *timer = NULL;
@@ -157,9 +157,12 @@ __global__ void simple_vbo_kernel(float4 *pos, unsigned int width, unsigned int 
     unsigned int z = blockIdx.z*blockDim.z + threadIdx.z;
 
     // calculate uv coordinates
+    // evenly distribute
     float u = x / (float) width;
     float v = y / (float) height;
     float w = z / (float) depth;
+
+    // distance between points
     u = u*256.0f - 1.0f;
     v = v*256.0f - 1.0f;
     w = w*256.0f - 1.0f;
@@ -170,7 +173,7 @@ __global__ void simple_vbo_kernel(float4 *pos, unsigned int width, unsigned int 
 
     // write output vertex
     //pos[y*width+x] = make_float4(u, w, v, 1.0f);
-    pos[(y * width * depth) + (z * width) + x] = make_float4(u, w, v, 10.0f);
+    pos[(y * width * depth) + (z * width) + x] = make_float4(u, v, w, 10.0f);
 }
 
 
@@ -301,7 +304,7 @@ bool runTest(int argc, char **argv, char *ref_file)
     if (ref_file != NULL)
     {
         // create VBO
-        checkCudaErrors(cudaMalloc((void **)&d_vbo_buffer, mesh_width*mesh_height*4*sizeof(float)));
+        checkCudaErrors(cudaMalloc((void **)&d_vbo_buffer, mesh_width*mesh_height*mesh_depth*4*sizeof(float)));
 
         // run the cuda part
         runAutoTest(devID, argv, ref_file);
@@ -404,14 +407,14 @@ void runAutoTest(int devID, char **argv, char *ref_file)
     cudaDeviceSynchronize();
     getLastCudaError("launch_kernel failed");
 
-    checkCudaErrors(cudaMemcpy(imageData, d_vbo_buffer, mesh_width*mesh_height*sizeof(float), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(imageData, d_vbo_buffer, mesh_width*mesh_height*mesh_depth*sizeof(float), cudaMemcpyDeviceToHost));
 
-    sdkDumpBin2(imageData, mesh_width*mesh_height*sizeof(float), "simpleGL.bin");
+    sdkDumpBin2(imageData, mesh_width*mesh_height*mesh_depth*sizeof(float), "simpleGL.bin");
     reference_file = sdkFindFilePath(ref_file, argv[0]);
 
     if (reference_file &&
         !sdkCompareBin2BinFloat("simpleGL.bin", reference_file,
-                                mesh_width*mesh_height*sizeof(float),
+                                mesh_width*mesh_height*mesh_depth*sizeof(float),
                                 MAX_EPSILON_ERROR, THRESHOLD, pArgv[0]))
     {
         g_TotalErrors++;
@@ -481,8 +484,13 @@ void display()
     glVertexPointer(4, GL_FLOAT, 0, 0);
 
     glEnableClientState(GL_VERTEX_ARRAY);
-    glColor3f(1.0, 0.0, 0.0);
+
+    /*glColor3f(0.0, 0.5, 0.0);
+    glDrawArrays(GL_LINE_STRIP, 0, mesh_width * mesh_height * mesh_depth);*/
+
+    glColor3f(0.0, 0.0, 0.75);
     glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height * mesh_depth);
+    
     glDisableClientState(GL_VERTEX_ARRAY);
 
     glutSwapBuffers();
@@ -552,11 +560,11 @@ void mouseWheel(int button, int dir, int x, int y)
 {
     if (dir > 0)
     {
-        translate_z += 0.1f;
+        translate_z += 0.5f;
     }
     else
     {
-        translate_z -= 0.1f;
+        translate_z -= 0.5f;
     }
 }
 
