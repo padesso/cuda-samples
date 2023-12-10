@@ -82,8 +82,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // constants
-const unsigned int window_width  = 512;
-const unsigned int window_height = 512;
+const unsigned int window_width  = 800;
+const unsigned int window_height = 800;
 
 const unsigned int mesh_width    = 256;
 const unsigned int mesh_height   = 256;
@@ -157,9 +157,9 @@ __global__ void simple_vbo_kernel(float4 *pos, unsigned int width, unsigned int 
     float u = x / (float) width;
     float v = y / (float) height;
     float w = z / (float) depth;
-    u = u*2.0f - 1.0f;
-    v = v*2.0f - 1.0f;
-    w = w*2.0f - 1.0f;
+    u = u*256.0f - 1.0f;
+    v = v*256.0f - 1.0f;
+    w = w*256.0f - 1.0f;
 
     // calculate simple sine wave pattern
     //float freq = 4.0f;
@@ -178,6 +178,15 @@ void launch_kernel(float4 *pos, unsigned int mesh_width,
     dim3 block(8, 8, 8);
     dim3 grid(mesh_width / block.x, mesh_height / block.y, mesh_depth / block.z);
     simple_vbo_kernel<<< grid, block>>>(pos, mesh_width, mesh_height, mesh_depth, time);
+}
+
+static dim3 IndexTo3D(UINT32 index, UINT32 xMax, UINT32 yMax)
+{
+    UINT32 z = index / (xMax * yMax);
+    index -= (z * xMax * yMax);
+    UINT32 y = index / xMax;
+    UINT32 x = index % xMax;
+    return dim3{ x, y, z };
 }
 
 
@@ -265,7 +274,8 @@ bool initGL(int *argc, char **argv)
     // projection
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, (GLfloat)window_width / (GLfloat) window_height, 0.1, 10.0);
+    gluPerspective(45, (GLfloat)window_width / (GLfloat) window_height, 0.01, 100.0);
+    //glOrtho(0.0f, (GLfloat)window_width, (GLfloat)window_height, 0.0f, 0.01, 100.0);
 
     SDK_CHECK_ERROR_GL();
 
