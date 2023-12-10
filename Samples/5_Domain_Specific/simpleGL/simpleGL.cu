@@ -133,6 +133,7 @@ void deleteVBO(GLuint *vbo, struct cudaGraphicsResource *vbo_res);
 void display();
 void keyboard(unsigned char key, int x, int y);
 void mouse(int button, int state, int x, int y);
+void mouseWheel(int button, int dir, int x, int y);
 void motion(int x, int y);
 void timerEvent(int value);
 
@@ -322,6 +323,7 @@ bool runTest(int argc, char **argv, char *ref_file)
         glutDisplayFunc(display);
         glutKeyboardFunc(keyboard);
         glutMouseFunc(mouse);
+        glutMouseWheelFunc(mouseWheel);
         glutMotionFunc(motion);
 #if defined (__APPLE__) || defined(MACOSX)
         atexit(cleanup);
@@ -534,6 +536,7 @@ void mouse(int button, int state, int x, int y)
     if (state == GLUT_DOWN)
     {
         mouse_buttons |= 1<<button;
+        printf("%d", button);
     }
     else if (state == GLUT_UP)
     {
@@ -542,6 +545,18 @@ void mouse(int button, int state, int x, int y)
 
     mouse_old_x = x;
     mouse_old_y = y;
+}
+
+void mouseWheel(int button, int dir, int x, int y)
+{
+    if (dir > 0)
+    {
+        translate_z += 0.1f;
+    }
+    else
+    {
+        translate_z -= 0.1f;
+    }
 }
 
 void motion(int x, int y)
