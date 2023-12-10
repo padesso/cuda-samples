@@ -87,6 +87,7 @@ const unsigned int window_height = 512;
 
 const unsigned int mesh_width    = 256;
 const unsigned int mesh_height   = 256;
+const unsigned int mesh_depth    = 256;
 
 // vbo variables
 GLuint vbo;
@@ -146,33 +147,37 @@ const char *sSDKsample = "simpleGL (VBO)";
 //! Simple kernel to modify vertex positions in sine wave pattern
 //! @param data  data in global memory
 ///////////////////////////////////////////////////////////////////////////////
-__global__ void simple_vbo_kernel(float4 *pos, unsigned int width, unsigned int height, float time)
+__global__ void simple_vbo_kernel(float4 *pos, unsigned int width, unsigned int height, unsigned int depth, float time)
 {
     unsigned int x = blockIdx.x*blockDim.x + threadIdx.x;
     unsigned int y = blockIdx.y*blockDim.y + threadIdx.y;
+    unsigned int z = blockIdx.z*blockDim.z + threadIdx.z;
 
     // calculate uv coordinates
     float u = x / (float) width;
     float v = y / (float) height;
+    float w = z / (float) depth;
     u = u*2.0f - 1.0f;
     v = v*2.0f - 1.0f;
+    w = w*2.0f - 1.0f;
 
     // calculate simple sine wave pattern
-    float freq = 4.0f;
-    float w = sinf(u*freq + time) * cosf(v*freq + time) * 0.5f;
+    //float freq = 4.0f;
+    //float w = sinf(u*freq + time) * cosf(v*freq + time) * 0.5f;
 
     // write output vertex
-    pos[y*width+x] = make_float4(u, w, v, 1.0f);
+    //pos[y*width+x] = make_float4(u, w, v, 1.0f);
+    pos[(y * width * depth) + (z * width) + x] = make_float4(u, w, v, 10.0f);
 }
 
 
 void launch_kernel(float4 *pos, unsigned int mesh_width,
-                   unsigned int mesh_height, float time)
+                   unsigned int mesh_height, unsigned int mesh_depth, float time)
 {
     // execute the kernel
-    dim3 block(8, 8, 1);
-    dim3 grid(mesh_width / block.x, mesh_height / block.y, 1);
-    simple_vbo_kernel<<< grid, block>>>(pos, mesh_width, mesh_height, time);
+    dim3 block(8, 8, 8);
+    dim3 grid(mesh_width / block.x, mesh_height / block.y, mesh_depth / block.z);
+    simple_vbo_kernel<<< grid, block>>>(pos, mesh_width, mesh_height, mesh_depth, time);
 }
 
 
@@ -345,7 +350,7 @@ void runCuda(struct cudaGraphicsResource **vbo_resource)
     //    dim3 grid(mesh_width / block.x, mesh_height / block.y, 1);
     //    kernel<<< grid, block>>>(dptr, mesh_width, mesh_height, g_fAnim);
 
-    launch_kernel(dptr, mesh_width, mesh_height, g_fAnim);
+    launch_kernel(dptr, mesh_width, mesh_height, mesh_depth, g_fAnim);
 
     // unmap buffer object
     checkCudaErrors(cudaGraphicsUnmapResources(1, vbo_resource, 0));
@@ -380,7 +385,7 @@ void runAutoTest(int devID, char **argv, char *ref_file)
     void *imageData = malloc(mesh_width*mesh_height*sizeof(float));
 
     // execute the kernel
-    launch_kernel((float4 *)d_vbo_buffer, mesh_width, mesh_height, g_fAnim);
+    launch_kernel((float4 *)d_vbo_buffer, mesh_width, mesh_height, mesh_depth, g_fAnim);
 
     cudaDeviceSynchronize();
     getLastCudaError("launch_kernel failed");
@@ -412,7 +417,7 @@ void createVBO(GLuint *vbo, struct cudaGraphicsResource **vbo_res,
     glBindBuffer(GL_ARRAY_BUFFER, *vbo);
 
     // initialize buffer object
-    unsigned int size = mesh_width * mesh_height * 4 * sizeof(float);
+    unsigned int size = mesh_width * mesh_height * mesh_depth * 4 * sizeof(float);
     glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -463,7 +468,7 @@ void display()
 
     glEnableClientState(GL_VERTEX_ARRAY);
     glColor3f(1.0, 0.0, 0.0);
-    glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height);
+    glDrawArrays(GL_POINTS, 0, mesh_width * mesh_height * mesh_depth);
     glDisableClientState(GL_VERTEX_ARRAY);
 
     glutSwapBuffers();
@@ -568,7 +573,7 @@ void checkResultCuda(int argc, char **argv, const GLuint &vbo)
         {
             // write file for regression test
             sdkWriteFile<float>("./data/regression.dat",
-                                data, mesh_width * mesh_height * 3, 0.0, false);
+                                data, mesh_width * mesh_height * mesh_depth * 3, 0.0, false);
         }
 
         // unmap GL buffer object
